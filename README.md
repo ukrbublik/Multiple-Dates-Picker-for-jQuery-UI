@@ -3,6 +3,15 @@ Find more infos on the [official MDP page](http://multidatespickr.sf.net).
 __CAUTION__: 1.6.x has changes to methods and options that are incompatible with previous versions of the same methods.
 
 # WHAT'S NEW
+## v1.6.5 (modified by ukrbublik)
+* Fixed for..in loops
+* Trigger 'change' event for altField when changing its val
+* Added options: 
+  afterUpdateDatepicker = function(inst), 
+  modifyTD = function(date, dateText, td), 
+  enabledDates = array of exclusively enabled dates
+* For option function onSelect() added 3rd bool parameter isSelected
+
 ## v1.6.4
 * Fix in maintaining custom dateFormat in toggleDate method.
 * Fixed respecting beforeShowDay custom classes.
