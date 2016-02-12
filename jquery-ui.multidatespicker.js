@@ -1,5 +1,5 @@
 /*
- * MultiDatesPicker v1.6.4
+ * MultiDatesPicker v1.6.5 (1.6.4 modified by ukrbublik)
  * http://multidatespickr.sourceforge.net/
  * 
  * Copyright 2014, Luca Lauretta
@@ -116,7 +116,7 @@
 						}
 						
 						if(this.multiDatesPicker.originalOnSelect && dateText)
-							this.multiDatesPicker.originalOnSelect.call(this, dateText, inst);
+							this.multiDatesPicker.originalOnSelect.call(this, dateText, inst, methods.gotDate.call(this, dateText) !== false);
 						
 					},
 					beforeShowDay : function(date) {
@@ -126,6 +126,11 @@
 							isDisabledDate = $this.multiDatesPicker('gotDate', date, 'disabled') !== false,
 							areAllSelected = this.multiDatesPicker.maxPicks <= this.multiDatesPicker.dates.picked.length;
 						
+						if(options.enabledDates) {
+							var dateText = dateConvert.call(this, date, 'string');
+							isDisabledDate = isDisabledDate || $.inArray(dateText, options.enabledDates) === -1;
+						}
+						
 						var bsdReturn = [true, '', null];
 						if(this.multiDatesPicker.originalBeforeShowDay)
 							bsdReturn = this.multiDatesPicker.originalBeforeShowDay.call(this, date);
@@ -133,6 +138,37 @@
 						bsdReturn[1] = gotThisDate ? 'ui-state-highlight '+bsdReturn[1] : bsdReturn[1];
 						bsdReturn[0] = bsdReturn[0] && !(isDisabledCalendar || isDisabledDate || (areAllSelected && !bsdReturn[1]));
 						return bsdReturn;
+					},
+					afterUpdateDatepicker : function(inst) {
+						//TIP: this - instance of Datepicker, use ret
+						//TIP: use inst.dpDiv to modify view
+						if(options && options.modifyTD) {
+							var $cals = inst.dpDiv.find('.ui-datepicker-calendar');
+							var self = this;
+							$.each($cals, function(ind, cal) {
+								var m = inst.drawMonth + ind;
+								var y = inst.drawYear;
+								if(m > 11) {
+									m -= 12;
+									y++;
+								}
+								var $tds = $(cal).find('td');
+								$.each($tds, function(ind, td) {
+									var $td = $(td);
+									var d = $td.find('a').text();
+									if(!d)
+										d = $td.find('span').text();
+									if(d) {
+										var date = new Date(y, m, d);
+										var dateText = dateConvert.call(ret, date, 'string');
+										options.modifyTD(date, dateText, td);
+									}
+								});
+							});
+						}
+						
+						if(ret.multiDatesPicker.originalAfterUpdateDatepicker)
+							ret.multiDatesPicker.originalAfterUpdateDatepicker(inst);
 					}
 				};
 				
@@ -149,6 +185,7 @@
 					this.multiDatesPicker.originalOnSelect = options.onSelect;
 					this.multiDatesPicker.originalBeforeShowDay = options.beforeShowDay;
 					this.multiDatesPicker.originalOnClose = options.onClose;
+					this.multiDatesPicker.originalAfterUpdateDatepicker = options.afterUpdateDatepicker;
 					
 					// datepicker init
 					$this.datepicker(options);
@@ -159,6 +196,14 @@
 					 
 					if(options.addDisabledDates)
 						methods.addDates.call(this, options.addDisabledDates, 'disabled');
+					
+					if(options.enabledDates) {
+						for(var i = 0 ; i < options.enabledDates.length ; i++) {
+							var d = options.enabledDates[i];
+							var dateText = dateConvert.call(this, d, 'string');
+							options.enabledDates[i] = dateText;
+						}
+					}
 					
 					methods.setMode.call(this, options);
 				} else {
@@ -177,7 +222,7 @@
 				
 				// Fixes the altField filled with defaultDate by default
 				var altFieldOption = $this.datepicker('option', 'altField');
-				if (altFieldOption) $(altFieldOption).val(inputs_values);
+				if (altFieldOption) $(altFieldOption).val(inputs_values).trigger('change');
 				
 				// Updates the calendar view
 				$this.datepicker('refresh');
@@ -277,7 +322,7 @@
 					case 'string':
 					case 'number':
 						var o_dates = new Array();
-						for(var i in this.multiDatesPicker.dates[type])
+						for(var i in this.multiDatesPicker.dates[type]) if(this.multiDatesPicker.dates[type].hasOwnProperty(i)) {
 							o_dates.push(
 								dateConvert.call(
 									this, 
@@ -285,6 +330,7 @@
 									format
 								)
 							);
+						}
 						return o_dates;
 					
 					default: $.error('Format "'+format+'" not supported!');
@@ -318,7 +364,8 @@
 				if(!type) type = 'picked';
 				var removed = [];
 				if (Object.prototype.toString.call(dates) === '[object Array]') {
-					for(var i in dates.sort(function(a,b){return b-a})) {
+					var s = dates.sort(function(a,b){return b-a});
+					for(var i in s) if(s.hasOwnProperty(i)) {
 						removed.push(removeDate.call(this, dates[i], type));
 					}
 				} else {
@@ -330,7 +377,8 @@
 				if(!type) type = 'picked';
 				var removed = [];
 				if (Object.prototype.toString.call(indexes) === '[object Array]') {
-					for(var i in indexes.sort(function(a,b){return b-a})) {
+					var s = indexes.sort(function(a,b){return b-a});
+					for(var i in s) if(s.hasOwnProperty(i)) {
 						removed.push(removeIndex.call(this, indexes[i], type));
 					}
 				} else {
@@ -371,7 +419,7 @@
 				
 				switch(this.multiDatesPicker.mode) {
 					case 'normal':
-						for(option in options)
+						for(option in options) if(options.hasOwnProperty(option)) {
 							switch(option) {
 								case 'maxPicks':
 								case 'minPicks':
@@ -381,11 +429,12 @@
 									break;
 								//default: $.error('Option ' + option + ' ignored for mode "'.options.mode.'".');
 							}
+						}
 					break;
 					case 'daysRange':
 					case 'weeksRange':
 						var mandatory = 1;
-						for(option in options)
+						for(option in options) if(options.hasOwnProperty(option)) {
 							switch(option) {
 								case 'autoselectRange':
 									mandatory--;
@@ -395,6 +444,7 @@
 									break;
 								//default: $.error('Option ' + option + ' does not exist for setMode on jQuery.multiDatesPicker');
 							}
+						}
 						if(mandatory > 0) $.error('Some mandatory options not specified!');
 					break;
 				}
@@ -440,7 +490,7 @@
 						// @todo: should use altFormat for altField
 						var dates_string = methods.value.call(this);
 						if (altField !== undefined && altField != "") {
-							$(altField).val(dates_string);
+							$(altField).val(dates_string).trigger('change');
 						}
 						$this.val(dates_string);
 						
@@ -466,6 +516,13 @@
 		}); 
 		
 		return ret;
+	};
+	
+	$.datepicker._originalUpdateDatepicker = $.datepicker._updateDatepicker;
+	$.datepicker._updateDatepicker = function(inst) {
+		$.datepicker._originalUpdateDatepicker(inst);
+		if(inst.settings.afterUpdateDatepicker)
+			inst.settings.afterUpdateDatepicker.call(this, inst);
 	};
 
 	var PROP_NAME = 'multiDatesPicker';
