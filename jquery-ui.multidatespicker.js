@@ -59,7 +59,6 @@
 			init : function( options ) {
 				var $this = $(this);
 				this.multiDatesPicker.changed = false;
-				
 				var mdp_events = {
 					beforeShow: function(input, inst) {
 						this.multiDatesPicker.changed = false;
@@ -138,13 +137,29 @@
 						bsdReturn[1] = gotThisDate ? 'ui-state-highlight '+bsdReturn[1] : bsdReturn[1];
 						bsdReturn[0] = bsdReturn[0] && !(isDisabledCalendar || isDisabledDate || (areAllSelected && !bsdReturn[1]));
 						return bsdReturn;
-					},
-					afterUpdateDatepicker : function(inst) {
-						//TIP: this - instance of Datepicker, use ret
+					}
+				};
+				// value have to be extracted before datepicker is initiated
+				if($this.val()) var inputDates = $this.val()
+				
+				if(options) {
+					// value have to be extracted before datepicker is initiated
+					//if(options.altField) var inputDates = $(options.altField).val();
+					if(options.separator) this.multiDatesPicker.separator = options.separator;
+					if(!this.multiDatesPicker.separator) this.multiDatesPicker.separator = ', ';
+					
+					this.multiDatesPicker.originalBeforeShow = options.beforeShow;
+					this.multiDatesPicker.originalOnSelect = options.onSelect;
+					this.multiDatesPicker.originalBeforeShowDay = options.beforeShowDay;
+					this.multiDatesPicker.originalOnClose = options.onClose;
+					
+					this.multiDatesPicker.originalAfterUpdateDatepicker = options.afterUpdateDatepicker;
+					var self = this;
+					options.afterUpdateDatepicker = function(inst) {
+						//TIP: this - instance of Datepicker, use self
 						//TIP: use inst.dpDiv to modify view
 						if(options && options.modifyTD) {
 							var $cals = inst.dpDiv.find('.ui-datepicker-calendar');
-							var self = this;
 							$.each($cals, function(ind, cal) {
 								var m = inst.drawMonth + ind;
 								var y = inst.drawYear;
@@ -160,32 +175,16 @@
 										d = $td.find('span').text();
 									if(d) {
 										var date = new Date(y, m, d);
-										var dateText = dateConvert.call(ret, date, 'string');
+										var dateText = dateConvert.call(self, date, 'string');
 										options.modifyTD(date, dateText, td);
 									}
 								});
 							});
 						}
 						
-						if(ret.multiDatesPicker.originalAfterUpdateDatepicker)
-							ret.multiDatesPicker.originalAfterUpdateDatepicker(inst);
-					}
-				};
-				
-				// value have to be extracted before datepicker is initiated
-				if($this.val()) var inputDates = $this.val()
-				
-				if(options) {
-					// value have to be extracted before datepicker is initiated
-					//if(options.altField) var inputDates = $(options.altField).val();
-					if(options.separator) this.multiDatesPicker.separator = options.separator;
-					if(!this.multiDatesPicker.separator) this.multiDatesPicker.separator = ', ';
-					
-					this.multiDatesPicker.originalBeforeShow = options.beforeShow;
-					this.multiDatesPicker.originalOnSelect = options.onSelect;
-					this.multiDatesPicker.originalBeforeShowDay = options.beforeShowDay;
-					this.multiDatesPicker.originalOnClose = options.onClose;
-					this.multiDatesPicker.originalAfterUpdateDatepicker = options.afterUpdateDatepicker;
+						if(self.multiDatesPicker.originalAfterUpdateDatepicker)
+							self.multiDatesPicker.originalAfterUpdateDatepicker(inst);
+					};
 					
 					// datepicker init
 					$this.datepicker(options);
@@ -518,13 +517,6 @@
 		return ret;
 	};
 	
-	$.datepicker._originalUpdateDatepicker = $.datepicker._updateDatepicker;
-	$.datepicker._updateDatepicker = function(inst) {
-		$.datepicker._originalUpdateDatepicker(inst);
-		if(inst.settings.afterUpdateDatepicker)
-			inst.settings.afterUpdateDatepicker.call(this, inst);
-	};
-
 	var PROP_NAME = 'multiDatesPicker';
 	var dpuuid = new Date().getTime();
 	var instActive;
@@ -547,6 +539,14 @@
 			$.datepicker._refreshDatepicker(target);
 			return;
 		}
+	};
+	
+	// inject our afterUpdateDatepicker method into $.datepicker's internal _updateDatepicker()
+	$.datepicker._originalUpdateDatepicker = $.datepicker._updateDatepicker;
+	$.datepicker._updateDatepicker = function(inst) {
+		$.datepicker._originalUpdateDatepicker(inst);
+		if(inst.settings.afterUpdateDatepicker)
+			inst.settings.afterUpdateDatepicker.call(this, inst);
 	};
 
 	// Workaround for #4055
